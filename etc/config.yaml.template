@@ -1,0 +1,36 @@
+server:
+  name: gin-gateway
+  host: 0.0.0.0
+  port: 8888
+  mode: release # debug / release
+
+
+nacos:
+  addr: 127.0.0.1
+  port: 8848
+  namespace: public
+  group: DEFAULT_GROUP
+  timeout_ms: 5000
+  access_key: ""
+  secret_key: ""
+
+
+proxy:
+  timeout_ms: 3000
+  keep_alive: true
+
+
+routes:
+  - path_prefix: /api/user
+    service: user-service
+    strip_prefix: /api/user
+
+
+  - path_prefix: /api/order
+    service: order-service
+    strip_prefix: /api/order
+
+
+logging:
+  level: info
+  access_log: true
