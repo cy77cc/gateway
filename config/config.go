@@ -3,11 +3,11 @@ package config
 import "time"
 
 type Config struct {
-	Server  ServerConfig  `yaml:"server"`
-	Nacos   NacosConfig   `yaml:"nacos"`
-	Proxy   ProxyConfig   `yaml:"proxy"`
-	Routes  []RouteConfig `yaml:"routes"`
-	Logging LogConfig     `yaml:"logging"`
+	Server   ServerConfig `yaml:"server"`
+	Nacos    NacosConfig  `yaml:"nacos"`
+	Proxy    ProxyConfig  `yaml:"proxy"`
+	RouteCfg RouteConfig  `yaml:"routecfg"`
+	Logging  LogConfig    `yaml:"logging"`
 }
 
 type ServerConfig struct {
@@ -34,9 +34,13 @@ type ProxyConfig struct {
 }
 
 type RouteConfig struct {
-	PathPrefix  string `yaml:"path_prefix"`
-	Service     string `yaml:"service"`
-	StripPrefix string `yaml:"strip_prefix"`
+	Routes []Route `yaml:"routes" json:"routes"`
+}
+
+type Route struct {
+	PathPrefix  string `yaml:"path_prefix" json:"path_prefix"`
+	Service     string `yaml:"service" json:"service"`
+	StripPrefix string `yaml:"strip_prefix" json:"strip_prefix"`
 }
 
 type LogConfig struct {

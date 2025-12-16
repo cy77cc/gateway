@@ -15,7 +15,10 @@ func main() {
 	var configPath string
 	flag.StringVar(&configPath, "config", "etc/config.yaml", "config path")
 
-	cfg, err := config.Load(configPath)
+	var gatewayConfigPath string
+	flag.StringVar(&gatewayConfigPath, "gateway-config", "etc/gateway-router.json", "gateway config path")
+
+	cfg, err := config.Load(configPath, gatewayConfigPath)
 
 	if err != nil {
 		log.Fatal("配置文件为空", err)
@@ -31,7 +34,7 @@ func main() {
 	nacosClient := discovery.NewNacosClient()
 
 	// 注册配置文件中的路由
-	for _, route := range config.CONFIG.Routes {
+	for _, route := range config.CONFIG.RouteCfg.Routes {
 		r.Any(route.PathPrefix+"/*path", proxy.NewRouteProxyHandler(nacosClient, route.Service, route.StripPrefix))
 	}
 
@@ -39,5 +42,5 @@ func main() {
 	r.Any("/api/:service/*path", proxy.NewHTTPProxyHandler(nacosClient))
 
 	// 启动
-	r.Run(fmt.Sprintf("%s:%d", config.CONFIG.Server.Host, config.CONFIG.Server.Port))
+	_ = r.Run(fmt.Sprintf("%s:%d", config.CONFIG.Server.Host, config.CONFIG.Server.Port))
 }
