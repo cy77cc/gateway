@@ -18,13 +18,14 @@ type ServerConfig struct {
 }
 
 type NacosConfig struct {
-	Addr      string `yaml:"addr"`
-	Port      uint64 `yaml:"port"`
-	Namespace string `yaml:"namespace"`
-	Group     string `yaml:"group"`
-	TimeoutMs uint64 `yaml:"timeout_ms"`
-	AccessKey string `yaml:"access_key"`
-	SecretKey string `yaml:"secret_key"`
+	Addr        string `yaml:"addr"`
+	Port        uint64 `yaml:"port"`
+	Namespace   string `yaml:"namespace"`
+	Group       string `yaml:"group"`
+	TimeoutMs   uint64 `yaml:"timeout_ms"`
+	AccessKey   string `yaml:"access_key"`
+	SecretKey   string `yaml:"secret_key"`
+	ContextPath string `yaml:"context_path"`
 }
 
 type ProxyConfig struct {

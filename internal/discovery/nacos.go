@@ -44,7 +44,7 @@ func NewNacosClient() *NacosClient {
 func (n *NacosClient) Resolve(service string) (string, error) {
 	// 这里是获取所有实例
 	instances, err := n.client.SelectInstances(vo.SelectInstancesParam{
-		ServiceName: service + "-service",
+		ServiceName: service,
 		HealthyOnly: true,
 	})
 	if err != nil || len(instances) == 0 {

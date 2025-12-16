@@ -30,7 +30,12 @@ func main() {
 	// 初始化 Nacos
 	nacosClient := discovery.NewNacosClient()
 
-	// 泛路由：/api/:service/*path
+	// 注册配置文件中的路由
+	for _, route := range config.CONFIG.Routes {
+		r.Any(route.PathPrefix+"/*path", proxy.NewRouteProxyHandler(nacosClient, route.Service, route.StripPrefix))
+	}
+
+	// 泛路由：/api/:service/*path (作为兜底或开发调试用)
 	r.Any("/api/:service/*path", proxy.NewHTTPProxyHandler(nacosClient))
 
 	// 启动
