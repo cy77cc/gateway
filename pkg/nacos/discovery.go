@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"gateway/pkg/discovery"
 
-	"github.com/nacos-group/nacos-sdk-go/vo"
+	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 )
 
 // GetService implements discovery.ServiceDiscovery

@@ -5,7 +5,7 @@ import (
 	"gateway/config"
 	"log"
 
-	"github.com/nacos-group/nacos-sdk-go/vo"
+	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 )
 
 // LoadAndWatchConfig 从Nacos加载配置并监听配置变化

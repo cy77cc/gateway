@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/nacos-group/nacos-sdk-go/vo"
+	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 )
 
 // Register implements discovery.ServiceRegistry
