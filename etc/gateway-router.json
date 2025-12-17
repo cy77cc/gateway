@@ -2,7 +2,7 @@
   "routes": [
     {
       "path_prefix": "/api/user",
-      "service": "user-service",
+      "service": "usercenter",
       "strip_prefix": "/api/user"
     },
     {

@@ -1,7 +1,7 @@
 package proxy
 
 import (
-	"gateway-demo/internal/discovery"
+	"gateway-demo/internal/nacos/discovery"
 	"net/http"
 	"net/http/httputil"
 	"net/url"

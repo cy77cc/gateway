@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"gateway-demo/config"
-	"gateway-demo/internal/discovery"
+	"gateway-demo/internal/nacos/discovery"
 	"gateway-demo/internal/proxy"
 	"log"
 

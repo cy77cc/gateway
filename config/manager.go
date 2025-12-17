@@ -18,13 +18,13 @@ type ServerConfig struct {
 }
 
 type NacosConfig struct {
-	Addr        string `yaml:"addr"`
+	Endpoint    string `yaml:"endpoint"`
 	Port        uint64 `yaml:"port"`
 	Namespace   string `yaml:"namespace"`
 	Group       string `yaml:"group"`
 	TimeoutMs   uint64 `yaml:"timeout_ms"`
-	AccessKey   string `yaml:"access_key"`
-	SecretKey   string `yaml:"secret_key"`
+	Username    string `yaml:"Username"`
+	Password    string `yaml:"Password"`
 	ContextPath string `yaml:"context_path"`
 }
 

@@ -6,29 +6,19 @@ server:
 
 
 nacos:
-  addr: 127.0.0.1
+  endpoint: 127.0.0.1
   port: 8848
   namespace: public
   group: DEFAULT_GROUP
   timeout_ms: 5000
-  access_key: ""
-  secret_key: ""
+  username: ""
+  password: ""
+  context_path: /nacos
 
 
 proxy:
-  timeout_ms: 3000
+  timeout_ms: "3000ms"
   keep_alive: true
-
-
-routes:
-  - path_prefix: /api/user
-    service: user-service
-    strip_prefix: /api/user
-
-
-  - path_prefix: /api/order
-    service: order-service
-    strip_prefix: /api/order
 
 
 logging:
