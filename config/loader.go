@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -32,4 +33,15 @@ func Load(path, gatewayConfigPath string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+func LoadEnv() {
+	nacosCfg := NacosConfig{}
+	nacosCfg.Endpoint = os.Getenv("NACOS_ADDR")
+	nacosCfg.Port, _ = strconv.ParseUint(os.Getenv("NACOS_PORT"), 10, 64)
+	nacosCfg.Namespace = os.Getenv("NACOS_NAMESPACEID")
+	nacosCfg.ContextPath = os.Getenv("NACOS_CONTEXT_PATH")
+	nacosCfg.Username = os.Getenv("NACOS_USERNAME")
+	nacosCfg.Password = os.Getenv("NACOS_PASSWORD")
+	CONFIG.Nacos = nacosCfg
 }

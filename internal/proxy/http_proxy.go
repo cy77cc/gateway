@@ -1,7 +1,8 @@
 package proxy
 
 import (
-	"gateway-demo/internal/nacos/discovery"
+	"fmt"
+	"gateway-demo/pkg/nacos"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -10,18 +11,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewHTTPProxyHandler(nacos *discovery.NacosClient) gin.HandlerFunc {
+func NewHTTPProxyHandler(nacos *nacos.Instance) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.Param("service")
 		path := c.Param("path")
 
-		target, err := nacos.Resolve(service)
+		target, err := nacos.GetAllServiceInstances(service)
 		if err != nil {
 			c.JSON(502, gin.H{"error": err.Error()})
 			return
 		}
 
-		targetURL, _ := url.Parse(target)
+		// TODO 负载均衡
+		targetURL, _ := url.Parse(fmt.Sprintf("http://%s:%s", target[0].Ip, target[0].Port))
 		proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
 		// 重写路径
@@ -30,15 +32,15 @@ func NewHTTPProxyHandler(nacos *discovery.NacosClient) gin.HandlerFunc {
 	}
 }
 
-func NewRouteProxyHandler(nacos *discovery.NacosClient, serviceName string, stripPrefix string) gin.HandlerFunc {
+func NewRouteProxyHandler(nacos *nacos.Instance, serviceName string, stripPrefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		target, err := nacos.Resolve(serviceName)
+		target, err := nacos.GetAllServiceInstances(serviceName)
 		if err != nil {
 			c.JSON(502, gin.H{"error": err.Error()})
 			return
 		}
 
-		targetURL, _ := url.Parse(target)
+		targetURL, _ := url.Parse(fmt.Sprintf("http://%s:%s", target[0].Ip, target[0].Port))
 		proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
 		originalDirector := proxy.Director

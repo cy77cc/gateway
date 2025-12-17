@@ -4,11 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"gateway-demo/config"
-	"gateway-demo/internal/nacos/discovery"
 	"gateway-demo/internal/proxy"
+	"gateway-demo/pkg/nacos"
 	"log"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -17,6 +19,8 @@ func main() {
 
 	var gatewayConfigPath string
 	flag.StringVar(&gatewayConfigPath, "gateway-config", "etc/gateway-router.json", "gateway config path")
+
+	_ = godotenv.Load(".env")
 
 	cfg, err := config.Load(configPath, gatewayConfigPath)
 
@@ -31,15 +35,22 @@ func main() {
 	r := gin.Default()
 
 	// 初始化 Nacos
-	nacosClient := discovery.NewNacosClient()
+	nacosInstance := nacos.NewNacosInstance(&config.CONFIG.Nacos)
+
+	// 服务注册
+	err = nacosInstance.Register("gateway", config.CONFIG.Server.Port)
+
+	if err != nil {
+		log.Fatal("注册服务失败", err)
+	}
 
 	// 注册配置文件中的路由
 	for _, route := range config.CONFIG.RouteCfg.Routes {
-		r.Any(route.PathPrefix+"/*path", proxy.NewRouteProxyHandler(nacosClient, route.Service, route.StripPrefix))
+		r.Any(route.PathPrefix+"/*path", proxy.NewRouteProxyHandler(nacosInstance, route.Service, route.StripPrefix))
 	}
 
 	// 泛路由：/api/:service/*path (作为兜底或开发调试用)
-	r.Any("/api/:service/*path", proxy.NewHTTPProxyHandler(nacosClient))
+	r.Any("/api/:service/*path", proxy.NewHTTPProxyHandler(nacosInstance))
 
 	// 启动
 	_ = r.Run(fmt.Sprintf("%s:%d", config.CONFIG.Server.Host, config.CONFIG.Server.Port))
