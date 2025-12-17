@@ -2,7 +2,7 @@ package proxy
 
 import (
 	"fmt"
-	"gateway-demo/pkg/nacos"
+	"gateway/pkg/nacos"
 	"net/http"
 	"net/http/httputil"
 	"net/url"

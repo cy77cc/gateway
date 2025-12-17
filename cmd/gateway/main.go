@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gateway-demo/config"
-	"gateway-demo/internal/proxy"
-	"gateway-demo/pkg/nacos"
+	"gateway/config"
+	"gateway/internal/proxy"
+	"gateway/pkg/nacos"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -22,20 +22,33 @@ func main() {
 
 	_ = godotenv.Load(".env")
 
-	cfg, err := config.Load(configPath, gatewayConfigPath)
+	config.LoadEnv()
 
+	nacosInstance := nacos.NewNacosInstance(&config.CONFIG.Nacos)
+
+	err := nacosInstance.LoadAndWatchConfig("gateway-global.yaml", "DEFAULT_GROUP", nil)
+
+	// 如果从nacos获取失败，从本地获取
 	if err != nil {
-		log.Fatal("配置文件为空", err)
+		cfg, err := config.Load(configPath, gatewayConfigPath)
+		if err != nil {
+			log.Fatal("加载配置文件失败")
+		}
+
+		config.CONFIG = cfg
 	}
 
-	config.CONFIG = cfg
+	// 获取路由信息
+	err = nacosInstance.LoadAndWatchConfig("gateway-router.json", "DEFAULT_GROUP", nil)
+	if err != nil {
+		log.Fatal("加载配置gateway-global.yaml文件失败")
+	}
 
 	gin.SetMode(config.CONFIG.Server.Mode)
 
 	r := gin.Default()
 
 	// 初始化 Nacos
-	nacosInstance := nacos.NewNacosInstance(&config.CONFIG.Nacos)
 
 	// 服务注册
 	err = nacosInstance.Register("gateway", config.CONFIG.Server.Port)

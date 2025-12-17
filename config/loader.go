@@ -35,6 +35,19 @@ func Load(path, gatewayConfigPath string) (*Config, error) {
 	return &cfg, nil
 }
 
+func ParseAndApply(content string, dataId string) error {
+	switch dataId {
+	case "gateway-router.json":
+		err := json.Unmarshal([]byte(content), &CONFIG.RouteCfg)
+		return err
+	case "gateway-global.yaml":
+		err := yaml.Unmarshal([]byte(content), &CONFIG.Server)
+		return err
+	default:
+		return nil
+	}
+}
+
 func LoadEnv() {
 	nacosCfg := NacosConfig{}
 	nacosCfg.Endpoint = os.Getenv("NACOS_ADDR")

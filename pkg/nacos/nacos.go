@@ -1,7 +1,7 @@
 package nacos
 
 import (
-	"gateway-demo/config"
+	"gateway/config"
 
 	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/clients/config_client"
