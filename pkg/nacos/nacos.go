@@ -17,7 +17,7 @@ type Instance struct {
 	NamingClient naming_client.INamingClient
 }
 
-func NewNacosInstance(cfg *config.NacosConfig) *Instance {
+func NewNacosInstance(cfg config.NacosConfig) (*Instance, error) {
 	sc := []constant.ServerConfig{
 		{
 			IpAddr: cfg.Endpoint,
@@ -39,7 +39,7 @@ func NewNacosInstance(cfg *config.NacosConfig) *Instance {
 		ClientConfig:  cc,
 	})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	configClient, err := clients.NewConfigClient(vo.NacosClientParam{
@@ -48,7 +48,7 @@ func NewNacosInstance(cfg *config.NacosConfig) *Instance {
 	})
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return &Instance{
@@ -56,6 +56,6 @@ func NewNacosInstance(cfg *config.NacosConfig) *Instance {
 		serverConfig: sc,
 		ConfigClient: configClient,
 		NamingClient: namingClient,
-	}
+	}, nil
 
 }

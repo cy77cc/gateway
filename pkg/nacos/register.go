@@ -8,12 +8,15 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/vo"
 )
 
-// Register 实现服务注册，自动获取本机IP和端口
-func (ins *Instance) Register(serviceName string, port int) error {
-	// 动态获取本机IP
-	ip, err := getLocalIP()
-	if err != nil {
-		return err
+// Register implements discovery.ServiceRegistry
+func (ins *Instance) Register(serviceName string, host string, port int, metadata map[string]string) error {
+	// 如果 host 为空，自动获取本机IP
+	if host == "" {
+		var err error
+		host, err = getLocalIP()
+		if err != nil {
+			return err
+		}
 	}
 
 	// 如果端口未指定，尝试从环境变量获取
@@ -21,24 +24,33 @@ func (ins *Instance) Register(serviceName string, port int) error {
 		port = getPortFromEnv()
 	}
 
+	if metadata == nil {
+		metadata = make(map[string]string)
+	}
+
 	// 注册实例到Nacos
-	_, err = ins.NamingClient.RegisterInstance(vo.RegisterInstanceParam{
-		Ip:          ip,
+	_, err := ins.NamingClient.RegisterInstance(vo.RegisterInstanceParam{
+		Ip:          host,
 		Port:        uint64(port),
 		ServiceName: serviceName,
 		Weight:      10,
 		Enable:      true,
 		Healthy:     true,
 		Ephemeral:   true,
-		Metadata: map[string]string{
-			"env":        "production",
-			"version":    "v1.0.0",
-			"protocol":   "http",
-			"weight":     "10",
-			"instanceId": "gateway-001",
-		},
+		Metadata:    metadata,
 	})
 
+	return err
+}
+
+// Deregister implements discovery.ServiceRegistry
+func (ins *Instance) Deregister(serviceName string, host string, port int) error {
+	_, err := ins.NamingClient.DeregisterInstance(vo.DeregisterInstanceParam{
+		Ip:          host,
+		Port:        uint64(port),
+		ServiceName: serviceName,
+		Ephemeral:   true,
+	})
 	return err
 }
 

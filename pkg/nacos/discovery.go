@@ -2,20 +2,34 @@ package nacos
 
 import (
 	"fmt"
+	"gateway/pkg/discovery"
 
-	"github.com/nacos-group/nacos-sdk-go/model"
 	"github.com/nacos-group/nacos-sdk-go/vo"
 )
 
-func (ins *Instance) GetAllServiceInstances(service string) ([]model.Instance, error) {
-	// 这里是获取所有实例
+// GetService implements discovery.ServiceDiscovery
+func (ins *Instance) GetService(serviceName string) ([]discovery.Instance, error) {
 	instances, err := ins.NamingClient.SelectInstances(vo.SelectInstancesParam{
-		ServiceName: service,
+		ServiceName: serviceName,
 		HealthyOnly: true,
 	})
-	if err != nil || len(instances) == 0 {
-		return []model.Instance{}, fmt.Errorf("service %s not found", service)
+	if err != nil {
+		return nil, err
 	}
 
-	return instances, nil
+	if len(instances) == 0 {
+		return nil, fmt.Errorf("service %s not found", serviceName)
+	}
+
+	var result []discovery.Instance
+	for _, inst := range instances {
+		result = append(result, discovery.Instance{
+			ID:       inst.InstanceId,
+			Host:     inst.Ip,
+			Port:     int(inst.Port),
+			Metadata: inst.Metadata,
+			Weight:   inst.Weight,
+		})
+	}
+	return result, nil
 }

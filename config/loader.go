@@ -4,57 +4,91 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
 
-var CONFIG *Config
+var (
+	cfg  *Config
+	lock sync.RWMutex
+)
 
-func Load(path, gatewayConfigPath string) (*Config, error) {
-	data, err := os.ReadFile(path)
+func init() {
+	cfg = &Config{}
+}
+
+// Get returns the current configuration safely
+func Get() *Config {
+	lock.RLock()
+	defer lock.RUnlock()
+	return cfg
+}
+
+// LoadFromFile loads configuration from local files
+func LoadFromFile(configPath, gatewayConfigPath string) (*Config, error) {
+	newCfg := &Config{}
+
+	// Load main config
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
-
-	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, newCfg); err != nil {
 		return nil, err
 	}
 
+	// Load gateway routes
 	gatewayRouter, err := os.ReadFile(gatewayConfigPath)
-
 	if err != nil {
 		return nil, err
 	}
-
-	err = json.Unmarshal(gatewayRouter, &cfg.RouteCfg)
-	if err != nil {
+	if err := json.Unmarshal(gatewayRouter, &newCfg.RouteCfg); err != nil {
 		return nil, err
 	}
 
-	return &cfg, nil
+	lock.Lock()
+	cfg = newCfg
+	lock.Unlock()
+
+	return newCfg, nil
 }
 
-func ParseAndApply(content string, dataId string) error {
-	switch dataId {
-	case "gateway-router.json":
-		err := json.Unmarshal([]byte(content), &CONFIG.RouteCfg)
-		return err
-	case "gateway-global.yaml":
-		err := yaml.Unmarshal([]byte(content), &CONFIG.Server)
-		return err
-	default:
-		return nil
-	}
-}
-
-func LoadEnv() {
+// LoadNacosEnv loads Nacos config from environment variables
+func LoadNacosEnv() NacosConfig {
 	nacosCfg := NacosConfig{}
 	nacosCfg.Endpoint = os.Getenv("NACOS_ADDR")
-	nacosCfg.Port, _ = strconv.ParseUint(os.Getenv("NACOS_PORT"), 10, 64)
+	if port := os.Getenv("NACOS_PORT"); port != "" {
+		nacosCfg.Port, _ = strconv.ParseUint(port, 10, 64)
+	} else {
+		nacosCfg.Port = 8848
+	}
+
 	nacosCfg.Namespace = os.Getenv("NACOS_NAMESPACEID")
 	nacosCfg.ContextPath = os.Getenv("NACOS_CONTEXT_PATH")
+	if nacosCfg.ContextPath == "" {
+		nacosCfg.ContextPath = "/nacos"
+	}
 	nacosCfg.Username = os.Getenv("NACOS_USERNAME")
 	nacosCfg.Password = os.Getenv("NACOS_PASSWORD")
-	CONFIG.Nacos = nacosCfg
+
+	lock.Lock()
+	cfg.Nacos = nacosCfg
+	lock.Unlock()
+
+	return nacosCfg
+}
+
+// UpdateRouteConfig updates the route configuration
+func UpdateRouteConfig(content string) error {
+	lock.Lock()
+	defer lock.Unlock()
+	return json.Unmarshal([]byte(content), &cfg.RouteCfg)
+}
+
+// UpdateServerConfig updates the server configuration
+func UpdateServerConfig(content string) error {
+	lock.Lock()
+	defer lock.Unlock()
+	return yaml.Unmarshal([]byte(content), &cfg.Server)
 }
