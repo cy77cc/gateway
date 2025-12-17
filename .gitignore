@@ -31,8 +31,9 @@ go.work.sum
 
 etc/config.yaml
 
-.idea/
+#.idea/
+log/
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
