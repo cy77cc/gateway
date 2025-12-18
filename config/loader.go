@@ -71,6 +71,9 @@ func LoadNacosEnv() NacosConfig {
 	}
 	nacosCfg.Username = os.Getenv("NACOS_USERNAME")
 	nacosCfg.Password = os.Getenv("NACOS_PASSWORD")
+	nacosCfg.IdentityKey = os.Getenv("NACOS_AUTH_IDENTITY_KEY")
+	nacosCfg.IdentityVal = os.Getenv("NACOS_AUTH_IDENTITY_VALUE")
+	nacosCfg.Token = os.Getenv("NACOS_AUTH_TOKEN")
 
 	lock.Lock()
 	cfg.Nacos = nacosCfg

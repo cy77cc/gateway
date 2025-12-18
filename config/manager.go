@@ -26,6 +26,9 @@ type NacosConfig struct {
 	Username    string `yaml:"Username"`
 	Password    string `yaml:"Password"`
 	ContextPath string `yaml:"context_path"`
+	IdentityKey string `yaml:"identity_key"`
+	IdentityVal string `yaml:"identity_val"`
+	Token       string `yaml:"token"`
 }
 
 type ProxyConfig struct {

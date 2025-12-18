@@ -47,10 +47,10 @@ func main() {
 	if err == nil {
 		log.Println("Connected to Nacos")
 		// Load remote configs
-		if err := nacosInstance.LoadAndWatchConfig("gateway-global.yaml", "DEFAULT_GROUP"); err != nil {
+		if err := nacosInstance.LoadAndWatchConfig("gateway-global", "DEFAULT_GROUP"); err != nil {
 			log.Printf("Failed to load global config from Nacos: %v", err)
 		}
-		if err := nacosInstance.LoadAndWatchConfig("gateway-router.json", "DEFAULT_GROUP"); err != nil {
+		if err := nacosInstance.LoadAndWatchConfig("gateway-router", "DEFAULT_GROUP"); err != nil {
 			log.Printf("Failed to load router config from Nacos: %v", err)
 		}
 

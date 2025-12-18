@@ -28,12 +28,14 @@ func NewNacosInstance(cfg config.NacosConfig) (*Instance, error) {
 
 	cc := &constant.ClientConfig{
 		NamespaceId: cfg.Namespace,
-		TimeoutMs:   cfg.TimeoutMs,
 		LogLevel:    "warn",
 		Username:    cfg.Username,
 		Password:    cfg.Password,
 		ContextPath: cfg.ContextPath,
-		Endpoint:    cfg.Endpoint,
+		//Endpoint:    cfg.Endpoint,
+		AccessKey: cfg.IdentityKey,
+		SecretKey: cfg.IdentityVal,
+		LogDir:    "log",
 	}
 
 	namingClient, err := clients.NewNamingClient(vo.NacosClientParam{

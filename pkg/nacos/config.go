@@ -54,9 +54,9 @@ func applyConfig(content string, dataId string) error {
 	log.Printf("applying config for %s", dataId)
 
 	switch dataId {
-	case "gateway-router.json":
+	case "gateway-router":
 		return config.UpdateRouteConfig(content)
-	case "gateway-global.yaml":
+	case "gateway-global":
 		return config.UpdateServerConfig(content)
 	default:
 		return fmt.Errorf("unknown config dataId: %s", dataId)
