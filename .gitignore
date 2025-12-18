@@ -37,3 +37,5 @@ log/
 # Editor/IDE
 .idea/
 .vscode/
+
+test/

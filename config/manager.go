@@ -3,11 +3,12 @@ package config
 import "time"
 
 type Config struct {
-	Server   ServerConfig `yaml:"server"`
-	Nacos    NacosConfig  `yaml:"nacos"`
-	Proxy    ProxyConfig  `yaml:"proxy"`
-	RouteCfg RouteConfig  `yaml:"routecfg"`
-	Logging  LogConfig    `yaml:"logging"`
+	Server        ServerConfig `yaml:"server"`
+	Proxy         ProxyConfig  `yaml:"proxy"`
+	Logging       LogConfig    `yaml:"logging"`
+	Nacos         *NacosConfig
+	RouteCfg      *RouteConfig
+	MiddlewareCfg *MiddlewareConfig
 }
 
 type ServerConfig struct {
@@ -49,4 +50,19 @@ type Route struct {
 type LogConfig struct {
 	Level     string `yaml:"level"`
 	AccessLog bool   `yaml:"access_log"`
+}
+
+type MiddlewareConfig struct {
+	Mysql struct {
+		Host   string `yaml:"host"`
+		Port   int    `yaml:"port"`
+		User   string `yaml:"user"`
+		Pass   string `yaml:"pass"`
+		DBName string `yaml:"db_name"`
+	} `yaml:"mysql"`
+	Redis struct {
+		Host     string `yaml:"host"`
+		Port     int    `yaml:"port"`
+		Password string `yaml:"password"`
+	} `yaml:"redis"`
 }

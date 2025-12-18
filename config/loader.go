@@ -16,6 +16,9 @@ var (
 
 func init() {
 	cfg = &Config{}
+	cfg.MiddlewareCfg = new(MiddlewareConfig)
+	cfg.RouteCfg = new(RouteConfig)
+	cfg.Nacos = new(NacosConfig)
 }
 
 // Get returns the current configuration safely
@@ -55,42 +58,35 @@ func LoadFromFile(configPath, gatewayConfigPath string) (*Config, error) {
 }
 
 // LoadNacosEnv loads Nacos config from environment variables
-func LoadNacosEnv() NacosConfig {
-	nacosCfg := NacosConfig{}
-	nacosCfg.Endpoint = os.Getenv("NACOS_ADDR")
+func (c *NacosConfig) LoadNacosEnv() {
+	c.Endpoint = os.Getenv("NACOS_ADDR")
 	if port := os.Getenv("NACOS_PORT"); port != "" {
-		nacosCfg.Port, _ = strconv.ParseUint(port, 10, 64)
+		c.Port, _ = strconv.ParseUint(port, 10, 64)
 	} else {
-		nacosCfg.Port = 8848
+		c.Port = 8848
 	}
 
-	nacosCfg.Namespace = os.Getenv("NACOS_NAMESPACEID")
-	nacosCfg.ContextPath = os.Getenv("NACOS_CONTEXT_PATH")
-	if nacosCfg.ContextPath == "" {
-		nacosCfg.ContextPath = "/nacos"
+	c.Namespace = os.Getenv("NACOS_NAMESPACEID")
+	c.ContextPath = os.Getenv("NACOS_CONTEXT_PATH")
+	if c.ContextPath == "" {
+		c.ContextPath = "/nacos"
 	}
-	nacosCfg.Username = os.Getenv("NACOS_USERNAME")
-	nacosCfg.Password = os.Getenv("NACOS_PASSWORD")
-	nacosCfg.IdentityKey = os.Getenv("NACOS_AUTH_IDENTITY_KEY")
-	nacosCfg.IdentityVal = os.Getenv("NACOS_AUTH_IDENTITY_VALUE")
-	nacosCfg.Token = os.Getenv("NACOS_AUTH_TOKEN")
-
-	lock.Lock()
-	cfg.Nacos = nacosCfg
-	lock.Unlock()
-
-	return nacosCfg
+	c.Username = os.Getenv("NACOS_USERNAME")
+	c.Password = os.Getenv("NACOS_PASSWORD")
+	c.IdentityKey = os.Getenv("NACOS_AUTH_IDENTITY_KEY")
+	c.IdentityVal = os.Getenv("NACOS_AUTH_IDENTITY_VALUE")
+	c.Token = os.Getenv("NACOS_AUTH_TOKEN")
 }
 
-// UpdateRouteConfig updates the route configuration
-func UpdateRouteConfig(content string) error {
+// ApplyConfig updates the route configuration
+func (c *RouteConfig) ApplyConfig(content string) error {
 	lock.Lock()
 	defer lock.Unlock()
 	return json.Unmarshal([]byte(content), &cfg.RouteCfg)
 }
 
-// UpdateServerConfig updates the server configuration
-func UpdateServerConfig(content string) error {
+// ApplyConfig updates the server configuration
+func (c *MiddlewareConfig) ApplyConfig(content string) error {
 	lock.Lock()
 	defer lock.Unlock()
 	return yaml.Unmarshal([]byte(content), &cfg.Server)

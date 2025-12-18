@@ -8,7 +8,6 @@ import (
 	"gateway/internal/proxy"
 	"gateway/pkg/discovery"
 	"gateway/pkg/loadbalance"
-	"gateway/pkg/nacos"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cy77cc/hisshop/common/nacos"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -37,20 +37,21 @@ func main() {
 	}
 
 	// 2. Load Nacos Config (Overlay)
-	nacosCfg := config.LoadNacosEnv()
+	cfg := config.Get()
+	cfg.Nacos.LoadNacosEnv()
 
 	var discoveryService discovery.ServiceDiscovery
 	var registryService discovery.ServiceRegistry
 
 	// Attempt to connect to Nacos
-	nacosInstance, err := nacos.NewNacosInstance(nacosCfg)
+	nacosInstance, err := nacos.NewNacosInstance(cfg.Nacos)
 	if err == nil {
 		log.Println("Connected to Nacos")
 		// Load remote configs
-		if err := nacosInstance.LoadAndWatchConfig("gateway-global", "DEFAULT_GROUP"); err != nil {
+		if err := nacosInstance.LoadAndWatchConfig("gateway-global", "DEFAULT_GROUP", cfg.MiddlewareCfg); err != nil {
 			log.Printf("Failed to load global config from Nacos: %v", err)
 		}
-		if err := nacosInstance.LoadAndWatchConfig("gateway-router", "DEFAULT_GROUP"); err != nil {
+		if err := nacosInstance.LoadAndWatchConfig("gateway-router", "DEFAULT_GROUP", cfg.RouteCfg); err != nil {
 			log.Printf("Failed to load router config from Nacos: %v", err)
 		}
 
@@ -60,7 +61,6 @@ func main() {
 		log.Printf("Nacos connection failed or not configured: %v. Running in local mode.", err)
 	}
 
-	cfg := config.Get()
 	if cfg == nil || (cfg.Server.Port == 0 && cfg.Server.Host == "") {
 		// Try to use default if nothing loaded
 		log.Println("Config is empty, using defaults")
