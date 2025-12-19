@@ -2,14 +2,15 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/cy77cc/gateway/pkg/discovery"
-	"github.com/cy77cc/gateway/pkg/loadbalance"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
 
+	"github.com/cy77cc/gateway/pkg/discovery"
+	"github.com/cy77cc/gateway/pkg/loadbalance"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 type ProxyHandler struct {
@@ -28,12 +29,6 @@ func NewProxyHandler(d discovery.ServiceDiscovery, lb loadbalance.LoadBalancer) 
 func (h *ProxyHandler) HandleGeneric(c *gin.Context) {
 	service := c.Param("service")
 	path := c.Param("path")
-	// For generic proxy, we might want to use the path directly or stripping /api/:service
-	// Based on original code: c.Request.URL.Path = path
-	// So we pass the captured path.
-
-	// Reconstruct the path to be forwarded
-	// If path is "/foo", we want to forward "/foo"
 	h.proxy(c, service, path, "")
 }
 
@@ -45,6 +40,13 @@ func (h *ProxyHandler) HandleRoute(serviceName, stripPrefix string) gin.HandlerF
 }
 
 func (h *ProxyHandler) proxy(c *gin.Context, serviceName, path, stripPrefix string) {
+	// 检查是否是 WebSocket 升级请求
+	if h.isWebSocketRequest(c.Request) {
+		h.proxyWebSocket(c, serviceName)
+		return
+	}
+
+	// 原有的 HTTP 反向代理逻辑
 	instances, err := h.discovery.GetService(serviceName)
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("service discovery error: %v", err)})
@@ -66,8 +68,6 @@ func (h *ProxyHandler) proxy(c *gin.Context, serviceName, path, stripPrefix stri
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
 
-		// Handle StripPrefix logic
-		// If stripPrefix is set, we need to operate on the original request path
 		targetPath := path
 		if stripPrefix != "" && strings.HasPrefix(targetPath, stripPrefix) {
 			targetPath = strings.TrimPrefix(targetPath, stripPrefix)
@@ -76,22 +76,112 @@ func (h *ProxyHandler) proxy(c *gin.Context, serviceName, path, stripPrefix stri
 			}
 		}
 
-		// For generic proxy where path is explicitly passed (and might be different from c.Request.URL.Path)
-		// we should respect the passed path argument if it differs, but here 'path' argument IS the intended target path
-		// unless stripPrefix modifies it.
-
 		req.URL.Path = targetPath
-
-		// Set Host header to target host to avoid issues with some servers checking Host header
 		req.Host = targetURL.Host
 	}
 
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		// Only write error if headers haven't been written
 		if !c.Writer.Written() {
 			c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("proxy error: %v", err)})
 		}
 	}
 
 	proxy.ServeHTTP(c.Writer, c.Request)
+}
+
+// 判断是否为 WebSocket 升级请求
+func (h *ProxyHandler) isWebSocketRequest(req *http.Request) bool {
+	connectionHeader := strings.ToLower(req.Header.Get("Connection"))
+	upgradeHeader := strings.ToLower(req.Header.Get("Upgrade"))
+	return strings.Contains(connectionHeader, "upgrade") && upgradeHeader == "websocket"
+}
+
+// WebSocket 代理实现
+func (h *ProxyHandler) proxyWebSocket(c *gin.Context, serviceName string) {
+	instances, err := h.discovery.GetService(serviceName)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("service discovery error: %v", err)})
+		c.Abort()
+		return
+	}
+
+	instance, err := h.loadBalancer.Select(instances)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "no available instances"})
+		c.Abort()
+		return
+	}
+
+	// 构建目标 URL
+	targetURL := url.URL{
+		Scheme: "ws",
+		Host:   fmt.Sprintf("%s:%d", instance.Host, instance.Port),
+		Path:   c.Request.URL.Path,
+	}
+
+	// 创建 WebSocket 连接
+	dialer := websocket.DefaultDialer
+	targetConn, resp, err := dialer.Dial(targetURL.String(), c.Request.Header)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("failed to connect to backend: %v", err)})
+		if resp != nil {
+			resp.Body.Close()
+		}
+		c.Abort()
+		return
+	}
+	defer targetConn.Close()
+
+	// 升级客户端连接
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true // 允许跨域
+		},
+	}
+	clientConn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("failed to upgrade client connection: %v", err)})
+		c.Abort()
+		return
+	}
+	defer clientConn.Close()
+
+	// 在两个连接之间转发消息
+	errChan := make(chan error, 2)
+
+	// 从客户端转发到后端服务
+	go func() {
+		defer close(errChan)
+		for {
+			messageType, message, err := clientConn.ReadMessage()
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			if err := targetConn.WriteMessage(messageType, message); err != nil {
+				errChan <- err
+				return
+			}
+		}
+	}()
+
+	// 从后端服务转发到客户端
+	go func() {
+		for {
+			messageType, message, err := targetConn.ReadMessage()
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			if err := clientConn.WriteMessage(messageType, message); err != nil {
+				errChan <- err
+				return
+			}
+		}
+	}()
+
+	// 等待任一方向出现错误
+	<-errChan
 }

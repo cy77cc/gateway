@@ -5,6 +5,7 @@ go 1.25.1
 require (
 	github.com/cy77cc/hioshop/common v0.0.0-20251219021716-886078230b0f
 	github.com/gin-gonic/gin v1.11.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.17.2
 	gopkg.in/yaml.v3 v3.0.1
