@@ -2,8 +2,8 @@ package proxy
 
 import (
 	"fmt"
-	"gateway/pkg/discovery"
-	"gateway/pkg/loadbalance"
+	"github.com/cy77cc/gateway/pkg/discovery"
+	"github.com/cy77cc/gateway/pkg/loadbalance"
 	"net/http"
 	"net/http/httputil"
 	"net/url"

@@ -4,18 +4,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"gateway/config"
-	"gateway/internal/proxy"
-	"gateway/pkg/discovery"
-	"gateway/pkg/loadbalance"
-	"log"
+	"github.com/cy77cc/gateway/config"
+	"github.com/cy77cc/gateway/internal/proxy"
+	"github.com/cy77cc/gateway/pkg/discovery"
+	"github.com/cy77cc/gateway/pkg/loadbalance"
+	"github.com/cy77cc/hioshop/common/log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/cy77cc/hisshop/common/nacos"
+	"github.com/cy77cc/hioshop/common/nacos"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -33,11 +33,12 @@ func main() {
 
 	// 1. Load Local Config First (Base)
 	if _, err := config.LoadFromFile(configPath, gatewayConfigPath); err != nil {
-		log.Printf("Local config not fully loaded (this is fine if using Nacos only): %v", err)
+		log.Errorf("Local config not fully loaded (this is fine if using Nacos only): %v", err)
 	}
 
 	// 2. Load Nacos Config (Overlay)
 	cfg := config.Get()
+	log.SetLevel(log.DEBUG)
 	cfg.Nacos.LoadNacosEnv()
 
 	var discoveryService discovery.ServiceDiscovery
@@ -46,24 +47,24 @@ func main() {
 	// Attempt to connect to Nacos
 	nacosInstance, err := nacos.NewNacosInstance(cfg.Nacos)
 	if err == nil {
-		log.Println("Connected to Nacos")
+		log.Info("Connected to Nacos")
 		// Load remote configs
 		if err := nacosInstance.LoadAndWatchConfig("gateway-global", "DEFAULT_GROUP", cfg.MiddlewareCfg); err != nil {
-			log.Printf("Failed to load global config from Nacos: %v", err)
+			log.Errorf("Failed to load global config from Nacos: %v", err)
 		}
 		if err := nacosInstance.LoadAndWatchConfig("gateway-router", "DEFAULT_GROUP", cfg.RouteCfg); err != nil {
-			log.Printf("Failed to load router config from Nacos: %v", err)
+			log.Errorf("Failed to load router config from Nacos: %v", err)
 		}
 
 		discoveryService = nacosInstance
 		registryService = nacosInstance
 	} else {
-		log.Printf("Nacos connection failed or not configured: %v. Running in local mode.", err)
+		log.Errorf("Nacos connection failed or not configured: %v. Running in local mode.", err)
 	}
 
 	if cfg == nil || (cfg.Server.Port == 0 && cfg.Server.Host == "") {
 		// Try to use default if nothing loaded
-		log.Println("Config is empty, using defaults")
+		log.Warn("Config is empty, using defaults")
 		if cfg == nil {
 			cfg = &config.Config{}
 		}
@@ -78,7 +79,7 @@ func main() {
 	lb := loadbalance.NewRoundRobin()
 
 	if discoveryService == nil {
-		log.Println("Warning: Service Discovery is not available. Proxying by service name will fail unless you implement a local discovery fallback.")
+		log.Warn("Warning: Service Discovery is not available. Proxying by service name will fail unless you implement a local discovery fallback.")
 	}
 
 	proxyHandler := proxy.NewProxyHandler(discoveryService, lb)
@@ -99,7 +100,7 @@ func main() {
 
 	// Start Server
 	go func() {
-		log.Printf("Starting server on %s", addr)
+		log.Info("Starting server on %s", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
@@ -112,9 +113,9 @@ func main() {
 			time.Sleep(1 * time.Second)
 			err := registryService.Register("gateway", cfg.Server.Host, cfg.Server.Port, nil)
 			if err != nil {
-				log.Printf("Failed to register service: %v", err)
+				log.Errorf("Failed to register service: %v", err)
 			} else {
-				log.Println("Service registered to Nacos")
+				log.Info("Service registered to Nacos")
 			}
 		}()
 	}
@@ -123,7 +124,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
+	log.Warn("Shutting down server...")
 
 	if registryService != nil {
 		_ = registryService.Deregister("gateway", cfg.Server.Host, cfg.Server.Port)
@@ -134,5 +135,5 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
 	}
-	log.Println("Server exiting")
+	log.Info("Server exiting")
 }

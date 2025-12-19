@@ -1,7 +1,7 @@
 package loadbalance
 
 import (
-	"gateway/pkg/discovery"
+	"github.com/cy77cc/gateway/pkg/discovery"
 	"sync/atomic"
 )
 

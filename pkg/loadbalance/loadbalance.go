@@ -2,7 +2,8 @@ package loadbalance
 
 import (
 	"errors"
-	"gateway/pkg/discovery"
+
+	"github.com/cy77cc/gateway/pkg/discovery"
 )
 
 // LoadBalancer defines the interface for load balancing strategies

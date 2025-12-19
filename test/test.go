@@ -1,12 +1,12 @@
 package main
 
 import (
-	"gateway/config"
+	"github.com/cy77cc/gateway/config"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/cy77cc/hisshop/common/nacos"
+	"github.com/cy77cc/hioshop/common/nacos"
 	"github.com/joho/godotenv"
 )
 
