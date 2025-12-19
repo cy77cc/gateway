@@ -38,4 +38,6 @@ log/
 .idea/
 .vscode/
 
+cache/
+
 test/
