@@ -1,9 +1,10 @@
 package loadbalance
 
 import (
-	"github.com/cy77cc/gateway/pkg/discovery"
 	"math/rand"
 	"time"
+
+	"github.com/cy77cc/hioshop/common/nacos"
 )
 
 type Random struct{}
@@ -16,7 +17,7 @@ func init() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
-func (r *Random) Select(instances []discovery.Instance) (*discovery.Instance, error) {
+func (r *Random) Select(instances []nacos.DiscoveryInstance) (*nacos.DiscoveryInstance, error) {
 	if len(instances) == 0 {
 		return nil, ErrNoInstances
 	}

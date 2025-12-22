@@ -7,39 +7,40 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/cy77cc/gateway/pkg/discovery"
+	"github.com/cy77cc/gateway/config"
 	"github.com/cy77cc/gateway/pkg/loadbalance"
+	"github.com/cy77cc/hioshop/common/nacos"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
-type ProxyHandler struct {
-	discovery    discovery.ServiceDiscovery
+type Handler struct {
+	discovery    nacos.ServiceDiscovery
 	loadBalancer loadbalance.LoadBalancer
 }
 
-func NewProxyHandler(d discovery.ServiceDiscovery, lb loadbalance.LoadBalancer) *ProxyHandler {
-	return &ProxyHandler{
+func NewProxyHandler(d nacos.ServiceDiscovery, lb loadbalance.LoadBalancer) *Handler {
+	return &Handler{
 		discovery:    d,
 		loadBalancer: lb,
 	}
 }
 
 // HandleGeneric handles /api/:service/*path
-func (h *ProxyHandler) HandleGeneric(c *gin.Context) {
+func (h *Handler) HandleGeneric(c *gin.Context) {
 	service := c.Param("service")
 	path := c.Param("path")
 	h.proxy(c, service, path, "")
 }
 
 // HandleRoute returns a handler for configured routes
-func (h *ProxyHandler) HandleRoute(serviceName, stripPrefix string) gin.HandlerFunc {
+func (h *Handler) HandleRoute(serviceName, stripPrefix string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h.proxy(c, serviceName, c.Request.URL.Path, stripPrefix)
 	}
 }
 
-func (h *ProxyHandler) proxy(c *gin.Context, serviceName, path, stripPrefix string) {
+func (h *Handler) proxy(c *gin.Context, serviceName, path, stripPrefix string) {
 	// 检查是否是 WebSocket 升级请求
 	if h.isWebSocketRequest(c.Request) {
 		h.proxyWebSocket(c, serviceName)
@@ -90,14 +91,14 @@ func (h *ProxyHandler) proxy(c *gin.Context, serviceName, path, stripPrefix stri
 }
 
 // 判断是否为 WebSocket 升级请求
-func (h *ProxyHandler) isWebSocketRequest(req *http.Request) bool {
+func (h *Handler) isWebSocketRequest(req *http.Request) bool {
 	connectionHeader := strings.ToLower(req.Header.Get("Connection"))
 	upgradeHeader := strings.ToLower(req.Header.Get("Upgrade"))
 	return strings.Contains(connectionHeader, "upgrade") && upgradeHeader == "websocket"
 }
 
 // WebSocket 代理实现
-func (h *ProxyHandler) proxyWebSocket(c *gin.Context, serviceName string) {
+func (h *Handler) proxyWebSocket(c *gin.Context, serviceName string) {
 	instances, err := h.discovery.GetService(serviceName)
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("service discovery error: %v", err)})
@@ -184,4 +185,8 @@ func (h *ProxyHandler) proxyWebSocket(c *gin.Context, serviceName string) {
 
 	// 等待任一方向出现错误
 	<-errChan
+}
+
+func (h *Handler) OnConfigChange(config *config.MergedConfig) {
+
 }

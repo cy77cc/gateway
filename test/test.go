@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/cy77cc/gateway/config"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,9 +11,9 @@ import (
 
 func main() {
 	_ = godotenv.Load(".env")
-	cfg := config.Get()
-	cfg.Nacos.LoadNacosEnv()
-	instance, err := nacos.NewNacosInstance(cfg.Nacos)
+	nacosConfig := nacos.NewNacosConfig()
+	nacosConfig.LoadNacosEnv()
+	instance, err := nacos.NewNacosInstance(nacosConfig)
 	if err != nil {
 		panic(err)
 	}

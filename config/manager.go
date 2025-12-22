@@ -1,68 +1,91 @@
 package config
 
-import "time"
+import (
+	"sync"
+	"sync/atomic"
+)
 
-type Config struct {
-	Server        ServerConfig `yaml:"server"`
-	Proxy         ProxyConfig  `yaml:"proxy"`
-	Logging       LogConfig    `yaml:"logging"`
-	Nacos         *NacosConfig
-	RouteCfg      *RouteConfig
-	MiddlewareCfg *MiddlewareConfig
+// ConfigWatcher 配置观察者接口
+type Watcher interface {
+	OnConfigChange(config *MergedConfig)
 }
 
-type ServerConfig struct {
-	Name string `yaml:"name"`
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
-	Mode string `yaml:"mode"`
+// ConfigManager 配置管理器
+type Manager struct {
+	localConfig  *LocalConfig
+	remoteConfig *RemoteConfig
+	mergedConfig atomic.Value // *MergedConfig
+	watchers     []Watcher
+	mu           sync.RWMutex
 }
 
-type NacosConfig struct {
-	Endpoint    string `yaml:"endpoint"`
-	Port        uint64 `yaml:"port"`
-	Namespace   string `yaml:"namespace"`
-	Group       string `yaml:"group"`
-	TimeoutMs   uint64 `yaml:"timeout_ms"`
-	Username    string `yaml:"Username"`
-	Password    string `yaml:"Password"`
-	ContextPath string `yaml:"context_path"`
-	IdentityKey string `yaml:"identity_key"`
-	IdentityVal string `yaml:"identity_val"`
-	Token       string `yaml:"token"`
+// NewConfigManager 创建配置管理器实例
+func NewConfigManager() *Manager {
+	cm := &Manager{
+		localConfig:  &LocalConfig{},
+		remoteConfig: &RemoteConfig{},
+		watchers:     make([]Watcher, 0),
+	}
+
+	// 初始化空配置
+	cm.mergedConfig.Store(&MergedConfig{})
+	return cm
 }
 
-type ProxyConfig struct {
-	Timeout   time.Duration `yaml:"timeout_ms"`
-	KeepAlive bool          `yaml:"keep_alive"`
+// SetLocalConfig 设置本地配置
+func (cm *Manager) SetLocalConfig(config *LocalConfig) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	cm.localConfig = config
+	cm.mergeConfig()
 }
 
-type RouteConfig struct {
-	Routes []Route `yaml:"routes" json:"routes"`
+// SetRemoteConfig 设置远程配置
+func (cm *Manager) SetRemoteConfig(config *RemoteConfig) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	cm.remoteConfig = config
+	cm.mergeConfig()
 }
 
-type Route struct {
-	PathPrefix  string `yaml:"path_prefix" json:"path_prefix"`
-	Service     string `yaml:"service" json:"service"`
-	StripPrefix string `yaml:"strip_prefix" json:"strip_prefix"`
+// GetConfig 获取当前合并后的配置
+func (cm *Manager) GetConfig() *MergedConfig {
+	return cm.mergedConfig.Load().(*MergedConfig)
 }
 
-type LogConfig struct {
-	Level     string `yaml:"level"`
-	AccessLog bool   `yaml:"access_log"`
+// RegisterWatcher 注册配置观察者
+func (cm *Manager) RegisterWatcher(watcher Watcher) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	cm.watchers = append(cm.watchers, watcher)
 }
 
-type MiddlewareConfig struct {
-	Mysql struct {
-		Host   string `yaml:"host"`
-		Port   int    `yaml:"port"`
-		User   string `yaml:"user"`
-		Pass   string `yaml:"pass"`
-		DBName string `yaml:"db_name"`
-	} `yaml:"mysql"`
-	Redis struct {
-		Host     string `yaml:"host"`
-		Port     int    `yaml:"port"`
-		Password string `yaml:"password"`
-	} `yaml:"redis"`
+// mergeConfig 合并本地和远程配置
+func (cm *Manager) mergeConfig() {
+	merged := &MergedConfig{
+		Server:     cm.localConfig.Server,
+		Proxy:      cm.localConfig.Proxy,
+		Logging:    cm.localConfig.Logging,
+		Routes:     cm.remoteConfig.Routes,
+		Middleware: cm.remoteConfig.Middleware,
+	}
+
+	cm.mergedConfig.Store(merged)
+	cm.notifyWatchers(merged)
+}
+
+// notifyWatchers 通知所有观察者配置已变更
+func (cm *Manager) notifyWatchers(config *MergedConfig) {
+	// 创建副本避免锁竞争
+	cm.mu.RLock()
+	watchers := make([]Watcher, len(cm.watchers))
+	copy(watchers, cm.watchers)
+	cm.mu.RUnlock()
+
+	for _, watcher := range watchers {
+		watcher.OnConfigChange(config)
+	}
 }

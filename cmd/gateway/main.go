@@ -2,18 +2,21 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
-	"github.com/cy77cc/gateway/config"
-	"github.com/cy77cc/gateway/internal/proxy"
-	"github.com/cy77cc/gateway/pkg/discovery"
-	"github.com/cy77cc/gateway/pkg/loadbalance"
-	"github.com/cy77cc/hioshop/common/log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/cy77cc/gateway/config"
+	"github.com/cy77cc/gateway/internal/middleware"
+	"github.com/cy77cc/gateway/internal/proxy"
+	"github.com/cy77cc/gateway/internal/router"
+	"github.com/cy77cc/gateway/pkg/loadbalance"
+	"github.com/cy77cc/hioshop/common/log"
 
 	"github.com/cy77cc/hioshop/common/nacos"
 	"github.com/gin-gonic/gin"
@@ -25,35 +28,63 @@ func main() {
 	flag.StringVar(&configPath, "config", "etc/config.yaml", "config path")
 
 	var gatewayConfigPath string
-	flag.StringVar(&gatewayConfigPath, "gateway-config", "etc/gateway-router.json", "gateway config path")
+	flag.StringVar(&gatewayConfigPath, "gateway-config", "etc/gateway-newRouter.json", "gateway config path")
 
 	flag.Parse()
 
 	_ = godotenv.Load(".env")
 
+	// 创建配置管理器
+	configManager := config.NewConfigManager()
+
 	// 1. Load Local Config First (Base)
-	if _, err := config.LoadFromFile(configPath, gatewayConfigPath); err != nil {
-		log.Errorf("Local config not fully loaded (this is fine if using Nacos only): %v", err)
+	localConfig, err := config.LoadLocalConfig(configPath)
+	if err != nil {
+		log.Warnf("Failed to load local config: %v", err)
+	} else {
+		configManager.SetLocalConfig(localConfig)
+	}
+
+	// 加载本地路由配置（如果存在）
+	routes, err := config.LoadRoutesFromJSON(gatewayConfigPath)
+	if err != nil {
+		log.Warnf("Failed to load local routes: %v", err)
+	} else {
+		remoteConfig := &config.RemoteConfig{
+			Routes: routes,
+		}
+		configManager.SetRemoteConfig(remoteConfig)
 	}
 
 	// 2. Load Nacos Config (Overlay)
-	cfg := config.Get()
+	cfg := configManager.GetConfig()
 	log.SetLevel(log.DEBUG)
-	cfg.Nacos.LoadNacosEnv()
+	// 2. Load Nacos Config (Overlay)
 
-	var discoveryService discovery.ServiceDiscovery
-	var registryService discovery.ServiceRegistry
+	nacosCfg := nacos.NewNacosConfig()
+	nacosCfg.LoadNacosEnv()
+
+	var discoveryService nacos.ServiceDiscovery
+	var registryService nacos.ServiceRegistry
 
 	// Attempt to connect to Nacos
-	nacosInstance, err := nacos.NewNacosInstance(cfg.Nacos)
+	nacosInstance, err := nacos.NewNacosInstance(nacosCfg)
 	if err == nil {
 		log.Info("Connected to Nacos")
+
+		// 创建远程配置观察者
+		routeWatcher := &config.RouteConfigWatcher{}
+		middlewareWatcher := &config.MiddlewareConfigWatcher{}
+
+		routeWatcher.SetConfigManager(configManager)
+		middlewareWatcher.SetConfigManager(configManager)
+
 		// Load remote configs
-		if err := nacosInstance.LoadAndWatchConfig("gateway-global", "DEFAULT_GROUP", cfg.MiddlewareCfg); err != nil {
+		if err := nacosInstance.LoadAndWatchConfig("gateway-global", "DEFAULT_GROUP", routeWatcher); err != nil {
 			log.Errorf("Failed to load global config from Nacos: %v", err)
 		}
-		if err := nacosInstance.LoadAndWatchConfig("gateway-router", "DEFAULT_GROUP", cfg.RouteCfg); err != nil {
-			log.Errorf("Failed to load router config from Nacos: %v", err)
+		if err := nacosInstance.LoadAndWatchConfig("gateway-newRouter", "DEFAULT_GROUP", middlewareWatcher); err != nil {
+			log.Errorf("Failed to load newRouter config from Nacos: %v", err)
 		}
 
 		discoveryService = nacosInstance
@@ -66,7 +97,7 @@ func main() {
 		// Try to use default if nothing loaded
 		log.Warn("Config is empty, using defaults")
 		if cfg == nil {
-			cfg = &config.Config{}
+			cfg = &config.MergedConfig{}
 		}
 		cfg.Server.Port = 8080
 		cfg.Server.Mode = "debug"
@@ -77,6 +108,8 @@ func main() {
 
 	// Setup Proxy
 	lb := loadbalance.NewRoundRobin()
+	middleware.InitBreakerManager()
+	middleware.InitBucketManager()
 
 	if discoveryService == nil {
 		log.Warn("Warning: Service Discovery is not available. Proxying by service name will fail unless you implement a local discovery fallback.")
@@ -84,13 +117,15 @@ func main() {
 
 	proxyHandler := proxy.NewProxyHandler(discoveryService, lb)
 
-	// Register Routes
-	for _, route := range cfg.RouteCfg.Routes {
-		r.Any(route.PathPrefix+"/*path", proxyHandler.HandleRoute(route.Service, route.StripPrefix))
-	}
+	configManager.RegisterWatcher(proxyHandler)
 
-	// Default/Fallback Route
-	r.Any("/api/:service/*path", proxyHandler.HandleGeneric)
+	// 注册路由时使用当前配置
+	currentConfig := configManager.GetConfig()
+
+	newRouter := router.NewRouter()
+
+	// 注册路由
+	newRouter.RegisterRoutes(r, currentConfig.Routes, proxyHandler)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
@@ -100,8 +135,8 @@ func main() {
 
 	// Start Server
 	go func() {
-		log.Info("Starting server on %s", addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Infof("Starting server on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()

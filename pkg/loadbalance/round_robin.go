@@ -1,8 +1,9 @@
 package loadbalance
 
 import (
-	"github.com/cy77cc/gateway/pkg/discovery"
 	"sync/atomic"
+
+	"github.com/cy77cc/hioshop/common/nacos"
 )
 
 type RoundRobin struct {
@@ -13,7 +14,7 @@ func NewRoundRobin() *RoundRobin {
 	return &RoundRobin{}
 }
 
-func (rb *RoundRobin) Select(instances []discovery.Instance) (*discovery.Instance, error) {
+func (rb *RoundRobin) Select(instances []nacos.DiscoveryInstance) (*nacos.DiscoveryInstance, error) {
 	if len(instances) == 0 {
 		return nil, ErrNoInstances
 	}
