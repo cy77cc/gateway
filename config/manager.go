@@ -5,12 +5,12 @@ import (
 	"sync/atomic"
 )
 
-// ConfigWatcher 配置观察者接口
+// Watcher 配置观察者接口
 type Watcher interface {
 	OnConfigChange(config *MergedConfig)
 }
 
-// ConfigManager 配置管理器
+// Manager 配置管理器
 type Manager struct {
 	localConfig  *LocalConfig
 	remoteConfig *RemoteConfig
@@ -35,18 +35,18 @@ func NewConfigManager() *Manager {
 // SetLocalConfig 设置本地配置
 func (cm *Manager) SetLocalConfig(config *LocalConfig) {
 	cm.mu.Lock()
-	defer cm.mu.Unlock()
 
 	cm.localConfig = config
+	cm.mu.Unlock()
 	cm.mergeConfig()
 }
 
 // SetRemoteConfig 设置远程配置
 func (cm *Manager) SetRemoteConfig(config *RemoteConfig) {
 	cm.mu.Lock()
-	defer cm.mu.Unlock()
 
 	cm.remoteConfig = config
+	cm.mu.Unlock()
 	cm.mergeConfig()
 }
 

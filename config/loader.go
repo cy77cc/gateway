@@ -29,9 +29,14 @@ func LoadRoutesFromJSON(gatewayConfigPath string) ([]Route, error) {
 		return nil, err
 	}
 
-	var routes []Route
-	if err := json.Unmarshal(data, &routes); err != nil {
+	var tmp map[string][]Route
+	if err := json.Unmarshal(data, &tmp); err != nil {
 		return nil, err
+	}
+
+	routes, ok := tmp["routes"]
+	if !ok {
+		return nil, ErrInvalidRouteConfig
 	}
 
 	return routes, nil

@@ -28,7 +28,7 @@ func main() {
 	flag.StringVar(&configPath, "config", "etc/config.yaml", "config path")
 
 	var gatewayConfigPath string
-	flag.StringVar(&gatewayConfigPath, "gateway-config", "etc/gateway-newRouter.json", "gateway config path")
+	flag.StringVar(&gatewayConfigPath, "gateway-router", "etc/gateway-router.json", "gateway config path")
 
 	flag.Parse()
 
@@ -83,8 +83,8 @@ func main() {
 		if err := nacosInstance.LoadAndWatchConfig("gateway-global", "DEFAULT_GROUP", routeWatcher); err != nil {
 			log.Errorf("Failed to load global config from Nacos: %v", err)
 		}
-		if err := nacosInstance.LoadAndWatchConfig("gateway-newRouter", "DEFAULT_GROUP", middlewareWatcher); err != nil {
-			log.Errorf("Failed to load newRouter config from Nacos: %v", err)
+		if err := nacosInstance.LoadAndWatchConfig("gateway-router", "DEFAULT_GROUP", middlewareWatcher); err != nil {
+			log.Errorf("Failed to load router config from Nacos: %v", err)
 		}
 
 		discoveryService = nacosInstance

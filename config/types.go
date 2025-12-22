@@ -1,6 +1,9 @@
 package config
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // LocalConfig 本地配置结构
 type LocalConfig struct {
@@ -8,6 +11,10 @@ type LocalConfig struct {
 	Proxy   ProxyConfig  `yaml:"proxy"`
 	Logging LogConfig    `yaml:"logging"`
 }
+
+var (
+	ErrInvalidRouteConfig = errors.New("invalid route config")
+)
 
 // RemoteConfig 远程配置结构
 type RemoteConfig struct {
