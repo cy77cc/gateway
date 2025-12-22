@@ -73,4 +73,7 @@ type CircuitConfig struct {
 }
 
 type RateLimitConfig struct {
+	Burst    int   `yaml:"burst" json:"burst"`
+	QPS      int   `yaml:"qps" json:"qps"`
+	LastTime int64 `yaml:"last_time" json:"last_time"`
 }

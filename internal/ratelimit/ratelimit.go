@@ -15,6 +15,15 @@ type TokenBucket struct {
 	lastTime int64
 }
 
+func NewTokenBucket(capacity, rate int64) *TokenBucket {
+	return &TokenBucket{
+		capacity: capacity,
+		tokens:   capacity,
+		rate:     rate,
+		lastTime: time.Now().UnixNano(),
+	}
+}
+
 func (b *TokenBucket) Allow() bool {
 	now := time.Now().UnixNano()
 	last := atomic.LoadInt64(&b.lastTime)

@@ -9,8 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// bucketManager 桶管理器
 var bucketManager *BucketManager
+
+// bucketManager 桶管理器
 
 // BucketManager 桶管理器结构
 type BucketManager struct {
@@ -42,12 +43,7 @@ func (bm *BucketManager) Get(route *config.Route) *ratelimit.TokenBucket {
 		return bucket
 	}
 
-	bucket := &ratelimit.TokenBucket{
-		capacity: int64(route.RateLimit.Burst),
-		tokens:   int64(route.RateLimit.Burst),
-		rate:     int64(route.RateLimit.QPS),
-		lastTime: 0,
-	}
+	bucket := ratelimit.NewTokenBucket(int64(route.RateLimitConfig.Burst), int64(route.RateLimitConfig.QPS))
 
 	bm.buckets[key] = bucket
 	return bucket
@@ -63,7 +59,7 @@ func InitBucketManager() {
 func RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		route := matchRoute(c.Request.URL.Path)
-		if route == nil || route.RateLimit == nil {
+		if route == nil || route.RateLimitConfig == nil {
 			c.Next()
 			return
 		}
@@ -81,7 +77,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 func DistributedRateLimitMiddleware(limiter *ratelimit.RedisRateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		route := matchRoute(c.Request.URL.Path)
-		if route == nil || route.RateLimit == nil {
+		if route == nil || route.RateLimitConfig == nil {
 			c.Next()
 			return
 		}
@@ -95,8 +91,8 @@ func DistributedRateLimitMiddleware(limiter *ratelimit.RedisRateLimiter) gin.Han
 		ok, err := limiter.Allow(
 			c.Request.Context(),
 			key,
-			route.RateLimit.Burst,
-			route.RateLimit.QPS,
+			route.RateLimitConfig.Burst,
+			route.RateLimitConfig.QPS,
 		)
 
 		if err != nil {
