@@ -7,6 +7,10 @@ import (
 	"github.com/cy77cc/hioshop/common/middleware/redis"
 )
 
+var (
+	ErrInvalidRouteConfig = errors.New("invalid route config")
+)
+
 // LocalConfig 本地配置结构
 type LocalConfig struct {
 	Server  ServerConfig `yaml:"server"`
@@ -14,23 +18,19 @@ type LocalConfig struct {
 	Logging LogConfig    `yaml:"logging"`
 }
 
-var (
-	ErrInvalidRouteConfig = errors.New("invalid route config")
-)
-
 // RemoteConfig 远程配置结构
 type RemoteConfig struct {
-	Routes     []Route          `json:"routes"`
-	Middleware MiddlewareConfig `yaml:"middleware"`
+	Routes  []Route `json:"routes" yaml:"routes"`
+	Gateway Gateway `yaml:"gateway" json:"gateway"`
 }
 
 // MergedConfig 合并后的完整配置
 type MergedConfig struct {
-	Server     ServerConfig
-	Proxy      ProxyConfig
-	Logging    LogConfig
-	Routes     []Route
-	Middleware MiddlewareConfig
+	Server  ServerConfig
+	Proxy   ProxyConfig
+	Logging LogConfig
+	Routes  []Route
+	Gateway Gateway
 }
 
 type ServerConfig struct {
@@ -53,12 +53,26 @@ type Route struct {
 	RateLimitConfig      *RateLimitConfig `yaml:"rate_limit" json:"rate_limit"`
 }
 
+type CircuitConfig struct {
+	MaxFailures     int     `yaml:"max_failures"`
+	MinRequest      int64   `yaml:"min_request"`
+	ErrorRate       float64 `yaml:"error_rate"`
+	OpenSeconds     int     `yaml:"open_seconds"`
+	HalfOpenSuccess int64   `yaml:"half_open_success"`
+}
+
+type RateLimitConfig struct {
+	Burst    int   `yaml:"burst" json:"burst"`
+	QPS      int   `yaml:"qps" json:"qps"`
+	LastTime int64 `yaml:"last_time" json:"last_time"`
+}
+
 type LogConfig struct {
 	Level     string `yaml:"level"`
 	AccessLog bool   `yaml:"access_log"`
 }
 
-type MiddlewareConfig struct {
+type Gateway struct {
 	Mysql struct {
 		Host   string `yaml:"host" json:"host"`
 		Port   int    `yaml:"port" json:"port"`
@@ -72,19 +86,6 @@ type MiddlewareConfig struct {
 		Password string     `yaml:"password" json:"password"`
 		Username string     `yaml:"username" json:"username"`
 		Type     redis.TYPE `yaml:"type" json:"type"`
+		DB       int        `yaml:"db" json:"db"`
 	} `yaml:"redis"`
-}
-
-type CircuitConfig struct {
-	MaxFailures     int     `yaml:"max_failures"`
-	MinRequest      int64   `yaml:"min_request"`
-	ErrorRate       float64 `yaml:"error_rate"`
-	OpenSeconds     int     `yaml:"open_seconds"`
-	HalfOpenSuccess int64   `yaml:"half_open_success"`
-}
-
-type RateLimitConfig struct {
-	Burst    int   `yaml:"burst" json:"burst"`
-	QPS      int   `yaml:"qps" json:"qps"`
-	LastTime int64 `yaml:"last_time" json:"last_time"`
 }

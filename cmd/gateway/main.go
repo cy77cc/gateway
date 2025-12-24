@@ -17,13 +17,16 @@ import (
 	"github.com/cy77cc/gateway/internal/router"
 	"github.com/cy77cc/gateway/pkg/loadbalance"
 	"github.com/cy77cc/hioshop/common/log"
+	"github.com/cy77cc/hioshop/common/register"
+	"github.com/cy77cc/hioshop/common/register/types"
 
-	"github.com/cy77cc/hioshop/common/nacos"
+	"github.com/cy77cc/hioshop/common/register/nacos"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	ctx := context.Background()
 	var configPath string
 	flag.StringVar(&configPath, "config", "etc/config.yaml", "config path")
 
@@ -64,31 +67,37 @@ func main() {
 	nacosCfg := nacos.NewNacosConfig()
 	nacosCfg.LoadNacosEnv()
 
-	var discoveryService nacos.ServiceDiscovery
-	var registryService nacos.ServiceRegistry
-
 	// Attempt to connect to Nacos
-	nacosInstance, err := nacos.NewNacosInstance(nacosCfg)
+	nacosInstance, err := register.NewRegister(ctx,
+		"nacos",
+		register.WithEndpoints(nacosCfg.Endpoints...),
+		register.WithAuth(nacosCfg.Username, nacosCfg.Password),
+		register.WithNamespace(nacosCfg.Namespace),
+	)
+
 	if err == nil {
 		log.Info("Connected to Nacos")
 
-		// 创建远程配置观察者
-		routeWatcher := &config.RouteConfigWatcher{}
-		middlewareWatcher := &config.MiddlewareConfigWatcher{}
-
-		routeWatcher.SetConfigManager(configManager)
-		middlewareWatcher.SetConfigManager(configManager)
-
-		// Load remote configs
-		if err := nacosInstance.LoadAndWatchConfig("gateway-global", "DEFAULT_GROUP", routeWatcher); err != nil {
+		item, err := nacosInstance.GetConfig(ctx, "gateway", "DEFAULT_GROUP")
+		if err != nil {
 			log.Errorf("Failed to load global config from Nacos: %v", err)
 		}
-		if err := nacosInstance.LoadAndWatchConfig("gateway-router", "DEFAULT_GROUP", middlewareWatcher); err != nil {
+
+		// Load remote configs
+		if err := configManager.ParseRemoteConfig(item); err != nil {
+			log.Errorf("Failed to load global config from Nacos: %v", err)
+		}
+		log.Info("Loaded global config from Nacos")
+
+		item, err = nacosInstance.GetConfig(ctx, "gateway-router", "DEFAULT_GROUP")
+		if err != nil {
 			log.Errorf("Failed to load router config from Nacos: %v", err)
 		}
 
-		discoveryService = nacosInstance
-		registryService = nacosInstance
+		if err := configManager.ParseRemoteConfig(item); err != nil {
+			log.Errorf("Failed to load router config from Nacos: %v", err)
+		}
+
 	} else {
 		log.Errorf("Nacos connection failed or not configured: %v. Running in local mode.", err)
 	}
@@ -111,11 +120,7 @@ func main() {
 	middleware.InitBreakerManager()
 	middleware.InitBucketManager()
 
-	if discoveryService == nil {
-		log.Warn("Warning: Service Discovery is not available. Proxying by service name will fail unless you implement a local discovery fallback.")
-	}
-
-	proxyHandler := proxy.NewProxyHandler(discoveryService, lb)
+	proxyHandler := proxy.NewProxyHandler(nacosInstance, lb)
 
 	configManager.RegisterWatcher(proxyHandler)
 
@@ -142,11 +147,20 @@ func main() {
 	}()
 
 	// Service Registration
-	if registryService != nil {
+	if nacosInstance != nil {
 		go func() {
 			// Give server a moment to start
 			time.Sleep(1 * time.Second)
-			err := registryService.Register("gateway", cfg.Server.Host, cfg.Server.Port, nil)
+			err := nacosInstance.Register(ctx, &types.ServiceInstance{
+				ID:          "gateway",
+				ServiceName: "gateway",
+				Host:        cfg.Server.Host,
+				Port:        cfg.Server.Port,
+				Metadata:    map[string]string{"version": "1.0.0"},
+				Weight:      1.0,
+				GroupName:   "DEFAULT_GROUP",
+				ClusterName: "DEFAULT",
+			})
 			if err != nil {
 				log.Errorf("Failed to register service: %v", err)
 			} else {
@@ -161,12 +175,15 @@ func main() {
 	<-quit
 	log.Warn("Shutting down server...")
 
-	if registryService != nil {
-		_ = registryService.Deregister("gateway", cfg.Server.Host, cfg.Server.Port)
+	if nacosInstance != nil {
+		_ = nacosInstance.Deregister(ctx, "gateway")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	defer func() {
+		cancel()
+		_ = nacosInstance.Close()
+	}()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
 	}

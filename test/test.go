@@ -5,7 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/cy77cc/hioshop/common/nacos"
+	"github.com/cy77cc/hioshop/common/register/nacos"
 	"github.com/joho/godotenv"
 )
 

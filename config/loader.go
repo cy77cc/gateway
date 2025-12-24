@@ -41,21 +41,3 @@ func LoadRoutesFromJSON(gatewayConfigPath string) ([]Route, error) {
 
 	return routes, nil
 }
-
-// ParseRemoteRoutes 解析远程路由配置
-func ParseRemoteRoutes(content string) ([]Route, error) {
-	var routes []Route
-	if err := json.Unmarshal([]byte(content), &routes); err != nil {
-		return nil, err
-	}
-	return routes, nil
-}
-
-// ParseRemoteMiddleware 解析远程中间件配置
-func ParseRemoteMiddleware(content string) (*MiddlewareConfig, error) {
-	middleware := &MiddlewareConfig{}
-	if err := yaml.Unmarshal([]byte(content), middleware); err != nil {
-		return nil, err
-	}
-	return middleware, nil
-}

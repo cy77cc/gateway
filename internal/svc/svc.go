@@ -4,13 +4,14 @@ import (
 	"github.com/cy77cc/gateway/config"
 	commonRedis "github.com/cy77cc/hioshop/common/middleware/redis"
 	"github.com/cy77cc/hioshop/common/register"
+	"github.com/cy77cc/hioshop/common/register/types"
 	"github.com/redis/go-redis/v9"
 )
 
 type ServiceContext struct {
 	Config config.MergedConfig
 	// TODO 在common模块创建一个通用的注册中心
-	Register *register.Register
+	Register *types.Register
 	Redis    redis.UniversalClient
 }
 

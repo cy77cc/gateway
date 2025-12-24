@@ -9,17 +9,17 @@ import (
 
 	"github.com/cy77cc/gateway/config"
 	"github.com/cy77cc/gateway/pkg/loadbalance"
-	"github.com/cy77cc/hioshop/common/nacos"
+	"github.com/cy77cc/hioshop/common/register/types"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
 type Handler struct {
-	discovery    nacos.ServiceDiscovery
+	discovery    types.Register
 	loadBalancer loadbalance.LoadBalancer
 }
 
-func NewProxyHandler(d nacos.ServiceDiscovery, lb loadbalance.LoadBalancer) *Handler {
+func NewProxyHandler(d types.Register, lb loadbalance.LoadBalancer) *Handler {
 	return &Handler{
 		discovery:    d,
 		loadBalancer: lb,
@@ -48,7 +48,7 @@ func (h *Handler) proxy(c *gin.Context, serviceName, path, stripPrefix string) {
 	}
 
 	// 原有的 HTTP 反向代理逻辑
-	instances, err := h.discovery.GetService(serviceName)
+	instances, err := h.discovery.GetService(c, serviceName, "")
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("service discovery error: %v", err)})
 		c.Abort()
@@ -99,7 +99,7 @@ func (h *Handler) isWebSocketRequest(req *http.Request) bool {
 
 // WebSocket 代理实现
 func (h *Handler) proxyWebSocket(c *gin.Context, serviceName string) {
-	instances, err := h.discovery.GetService(serviceName)
+	instances, err := h.discovery.GetService(c, serviceName, "")
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("service discovery error: %v", err)})
 		c.Abort()
