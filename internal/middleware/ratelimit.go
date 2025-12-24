@@ -11,16 +11,22 @@ import (
 
 var bucketManager *BucketManager
 
-// bucketManager 桶管理器
-
-// BucketManager 桶管理器结构
+// BucketManager 桶管理器结构，根据路由创建对应的令牌桶
 type BucketManager struct {
 	buckets map[string]*ratelimit.TokenBucket
 	mutex   sync.RWMutex
 }
 
-// Get 获取指定路由的令牌桶
+// Get 根据路由配置获取对应的令牌桶，如果不存在则创建新的令牌桶
+// 参数:
+//
+//	route: 路由配置信息，包含服务名、路径前缀和限流配置
+//
+// 返回值:
+//
+//	*ratelimit.TokenBucket: 对应的令牌桶实例，如果路由配置无效则返回nil
 func (bm *BucketManager) Get(route *config.Route) *ratelimit.TokenBucket {
+	// 如果路由为空或这个路由没有限流配置，则返回nil
 	if route == nil || route.RateLimitConfig == nil {
 		return nil
 	}
@@ -34,6 +40,7 @@ func (bm *BucketManager) Get(route *config.Route) *ratelimit.TokenBucket {
 	}
 	bm.mutex.RUnlock()
 
+	// 如果还没有创建过这个路由的令牌桶，则创建
 	// 创建新的令牌桶
 	bm.mutex.Lock()
 	defer bm.mutex.Unlock()

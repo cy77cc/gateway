@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"time"
+
+	"github.com/cy77cc/hioshop/common/middleware/redis"
 )
 
 // LocalConfig 本地配置结构
@@ -58,16 +60,18 @@ type LogConfig struct {
 
 type MiddlewareConfig struct {
 	Mysql struct {
-		Host   string `yaml:"host"`
-		Port   int    `yaml:"port"`
-		User   string `yaml:"user"`
-		Pass   string `yaml:"pass"`
-		DBName string `yaml:"db_name"`
+		Host   string `yaml:"host" json:"host"`
+		Port   int    `yaml:"port" json:"port"`
+		User   string `yaml:"user" json:"user"`
+		Pass   string `yaml:"pass" json:"pass"`
+		DBName string `yaml:"db_name" json:"db_name"`
 	} `yaml:"mysql"`
 	Redis struct {
-		Host     string `yaml:"host"`
-		Port     int    `yaml:"port"`
-		Password string `yaml:"password"`
+		Addrs    []string   `yaml:"addrs" json:"addrs"`
+		Port     int        `yaml:"port" json:"port"`
+		Password string     `yaml:"password" json:"password"`
+		Username string     `yaml:"username" json:"username"`
+		Type     redis.TYPE `yaml:"type" json:"type"`
 	} `yaml:"redis"`
 }
 
