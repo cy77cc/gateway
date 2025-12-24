@@ -98,6 +98,8 @@ func main() {
 			log.Errorf("Failed to load router config from Nacos: %v", err)
 		}
 
+		log.Info("Loaded router config from Nacos")
+
 	} else {
 		log.Errorf("Nacos connection failed or not configured: %v. Running in local mode.", err)
 	}

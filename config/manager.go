@@ -61,7 +61,7 @@ func (cm *Manager) GetConfig() *MergedConfig {
 }
 
 func (cm *Manager) ParseRemoteConfig(item *types.ConfigItem) error {
-	switch item.Group {
+	switch item.Key {
 	case "gateway-router":
 		content := item.Value
 		tmp := map[string][]Route{}
