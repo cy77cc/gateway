@@ -3,7 +3,6 @@ package svc
 import (
 	"github.com/cy77cc/gateway/config"
 	commonRedis "github.com/cy77cc/hioshop/common/middleware/redis"
-	"github.com/cy77cc/hioshop/common/register"
 	"github.com/cy77cc/hioshop/common/register/types"
 	"github.com/redis/go-redis/v9"
 )
@@ -17,16 +16,16 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.MergedConfig) *ServiceContext {
 	redisComOptions := commonRedis.DefaultCommonOptions()
-	redisComOptions.Addrs = c.Middleware.Redis.Addrs
-	redisComOptions.Password = c.Middleware.Redis.Password
+	redisComOptions.Addrs = c.Gateway.Redis.Addrs
+	redisComOptions.Password = c.Gateway.Redis.Password
 	redisCfg := commonRedis.Config{
-		Type:   c.Middleware.Redis.Type,
+		Type:   c.Gateway.Redis.Type,
 		Common: redisComOptions,
 	}
 	rdb := commonRedis.MustNewRedisClient(&redisCfg)
 	return &ServiceContext{
-		Config:   c,
-		Register: register.NewRegister(),
-		Redis:    rdb,
+		Config: c,
+		//Register: register.NewRegister(),
+		Redis: rdb,
 	}
 }
