@@ -6,8 +6,14 @@ import (
 	"github.com/cy77cc/gateway/config"
 )
 
+var currentRoutes []config.Route
+
+func SetRoutes(rs []config.Route) {
+	currentRoutes = rs
+}
+
 func matchRoute(path string) *config.Route {
-	cfg := config.NewConfigManager().GetConfig().Routes
+	cfg := currentRoutes
 
 	var matched *config.Route
 	longest := 0

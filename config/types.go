@@ -88,4 +88,12 @@ type Gateway struct {
 		Type     redis.TYPE `yaml:"type" json:"type"`
 		DB       int        `yaml:"db" json:"db"`
 	} `yaml:"redis"`
+	Auth struct {
+		AccessSecret string `yaml:"access_secret" json:"access_secret"`
+		AccessExpire int64  `yaml:"access_expire" json:"access_expire"`
+	} `yaml:"auth" json:"auth"`
+	Sign struct {
+		SignSecret string `yaml:"sign_secret" json:"sign_secret"`
+		SkewSec    int64  `yaml:"skew_sec" json:"skew_sec"`
+	} `yaml:"sign" json:"sign"`
 }

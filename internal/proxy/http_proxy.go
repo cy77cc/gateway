@@ -1,22 +1,29 @@
 package proxy
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cy77cc/gateway/config"
 	"github.com/cy77cc/gateway/pkg/loadbalance"
 	"github.com/cy77cc/hioshop/common/register/types"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 type Handler struct {
 	discovery    types.Register
 	loadBalancer loadbalance.LoadBalancer
+	cfg          *config.MergedConfig
 }
 
 func NewProxyHandler(d types.Register, lb loadbalance.LoadBalancer) *Handler {
@@ -79,6 +86,9 @@ func (h *Handler) proxy(c *gin.Context, serviceName, path, stripPrefix string) {
 
 		req.URL.Path = targetPath
 		req.Host = targetURL.Host
+
+		// Inject identity & signature headers for downstream services (e.g., fileserver)
+		h.injectSecurityHeaders(req)
 	}
 
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
@@ -188,5 +198,71 @@ func (h *Handler) proxyWebSocket(c *gin.Context, serviceName string) {
 }
 
 func (h *Handler) OnConfigChange(config *config.MergedConfig) {
+	h.cfg = config
+}
 
+func (h *Handler) injectSecurityHeaders(req *http.Request) {
+	// Request ID
+	if req.Header.Get("X-Request-Id") == "" {
+		req.Header.Set("X-Request-Id", uuid.NewString())
+	}
+	// Timestamp
+	ts := strconv.FormatInt(time.Now().Unix(), 10)
+	req.Header.Set("X-Timestamp", ts)
+	// User ID from JWT or header
+	uidStr := h.extractUID(req)
+	if uidStr == "" {
+		uidStr = "0"
+	}
+	req.Header.Set("X-User-Id", uidStr)
+	// Signature
+	secret := ""
+	if h.cfg != nil {
+		secret = h.cfg.Gateway.Sign.SignSecret
+	}
+	if secret == "" {
+		return
+	}
+	canonical := req.Method + "\n" + req.URL.Path + "\n" + uidStr + "\n" + ts
+	sig := hmacSha256Hex([]byte(secret), []byte(canonical))
+	req.Header.Set("X-Signature", sig)
+}
+
+func (h *Handler) extractUID(req *http.Request) string {
+	// Prefer JWT Authorization: Bearer <token>
+	if h.cfg != nil && h.cfg.Gateway.Auth.AccessSecret != "" {
+		auth := req.Header.Get("Authorization")
+		prefix := "Bearer "
+		if strings.HasPrefix(auth, prefix) {
+			tokenStr := strings.TrimPrefix(auth, prefix)
+			token, _ := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+				return []byte(h.cfg.Gateway.Auth.AccessSecret), nil
+			})
+			if token != nil && token.Valid {
+				if claims, ok := token.Claims.(jwt.MapClaims); ok {
+					if v, ok := claims["uid"]; ok {
+						switch vv := v.(type) {
+						case float64:
+							return strconv.FormatInt(int64(vv), 10)
+						case int64:
+							return strconv.FormatInt(vv, 10)
+						case string:
+							return vv
+						}
+					}
+				}
+			}
+		}
+	}
+	// Fallback to header
+	if hv := req.Header.Get("X-User-Id"); hv != "" {
+		return hv
+	}
+	return ""
+}
+
+func hmacSha256Hex(key, data []byte) string {
+	h := hmac.New(sha256.New, key)
+	h.Write(data)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }

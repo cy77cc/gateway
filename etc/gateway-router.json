@@ -1,6 +1,21 @@
 {
   "routes": [
     {
+      "path_prefix": "/api/file",
+      "service": "file-service",
+      "strip_prefix": "/api/file",
+      "rate_limit": {
+        "burst": 100,
+        "qps": 50
+      },
+      "circuit": {
+        "min_request": 10,
+        "error_rate": 0.5,
+        "open_seconds": 30,
+        "half_open_success": 3
+      }
+    },
+    {
       "path_prefix": "/api/user",
       "service": "usercenter",
       "strip_prefix": "/api/user",
@@ -26,17 +41,6 @@
       "path_prefix": "/api/product",
       "service": "product-service",
       "strip_prefix": "/api/product",
-      "circuit": {
-        "min_request": 5,
-        "error_rate": 0.5,
-        "open_seconds": 30,
-        "half_open_success": 3
-      }
-    },
-    {
-      "path_prefix": "/api/file",
-      "service": "file-service",
-      "strip_prefix": "/api/file",
       "circuit": {
         "min_request": 5,
         "error_rate": 0.5,

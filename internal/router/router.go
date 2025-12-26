@@ -15,6 +15,8 @@ func NewRouter() *Router {
 }
 
 func (*Router) RegisterRoutes(r *gin.Engine, routes []config.Route, proxyHandler *proxy.Handler) {
+	// set routes for middlewares
+	middleware.SetRoutes(routes)
 	for _, route := range routes {
 		if route.CircuitBreakerConfig != nil {
 			middleware.InitBreakerManager()

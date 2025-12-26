@@ -133,6 +133,8 @@ func main() {
 
 	// 注册路由
 	newRouter.RegisterRoutes(r, currentConfig.Routes, proxyHandler)
+	// Seed proxy handler with current config
+	proxyHandler.OnConfigChange(currentConfig)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
