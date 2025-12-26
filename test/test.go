@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/cy77cc/hioshop/common/register/nacos"
+	"github.com/cy77cc/hioshop/common/register/types"
 	"github.com/joho/godotenv"
 )
 
@@ -18,9 +20,14 @@ func main() {
 		panic(err)
 	}
 
-	err = instance.Register("usercenter", "118.193.38.89", 443, map[string]string{"instance": "1"})
-	err = instance.Register("usercenter", "115.190.245.134", 8080, map[string]string{"instance": "2"})
-	err = instance.Register("usercenter", "115.190.245.134", 8848, map[string]string{"instance": "3"})
+	ctx := context.Background()
+	svc := &types.ServiceInstance{
+		ServiceName: "usercenter",
+		Host:          "118.193.38.89",
+		Port:        443,
+		Metadata:    map[string]string{"instance": "1"},
+	}
+	err = instance.Register(ctx, svc)
 	if err != nil {
 		panic(err)
 	}
