@@ -139,9 +139,8 @@ func (cb *CircuitBreaker) calculateK(requests int64) float64 {
 		return 2.0
 	} else if requests < 100 {
 		return 1.5
-	} else {
-		return 1.2
 	}
+	return 1.2
 }
 
 // shouldTrip 判断是否应该触发熔断
